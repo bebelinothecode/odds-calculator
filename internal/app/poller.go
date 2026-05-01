@@ -2,8 +2,10 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"oddsbot/internal/domain/alerts"
@@ -20,6 +22,9 @@ type bestKey struct {
 	Line    float64
 	Outcome odds.Outcome
 }
+
+// alertSeq provides monotonically increasing alert IDs.
+var alertSeq atomic.Uint64
 
 // Poller continuously fetches events and quotes from a Provider, stores them,
 // and fires alerts when the best price improves by at least minImprove.
@@ -119,7 +124,7 @@ func (p *Poller) checkAlerts(ev odds.Event, quotes []odds.Quote) {
 			}
 			if improve := (bp.Decimal - old.Decimal) / old.Decimal; improve >= p.minImprove {
 				p.alertStore.Add(alerts.Alert{
-					ID:        time.Now().Format("20060102150405.000000000"),
+					ID:        fmt.Sprintf("%d-%d", time.Now().UnixNano(), alertSeq.Add(1)),
 					CreatedAt: time.Now(),
 					EventID:   ev.ID,
 					Market:    mk,

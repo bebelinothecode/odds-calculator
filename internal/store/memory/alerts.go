@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"log"
 	"sync"
 
 	"oddsbot/internal/domain/alerts"
@@ -33,7 +34,8 @@ func (s *AlertStore) Add(a alerts.Alert) {
 	for _, ch := range s.subs {
 		select {
 		case ch <- a:
-		default: // drop if subscriber is slow
+		default:
+			log.Printf("alertstore: subscriber channel full, dropping alert id=%s", a.ID)
 		}
 	}
 }

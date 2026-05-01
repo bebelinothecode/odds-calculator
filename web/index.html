@@ -96,8 +96,7 @@
         for (const e of events) {
           const opt = document.createElement('option');
           opt.value = e.id;
-          const live = e.inPlay ? '<span class="badge-live">LIVE</span>' : '';
-          opt.textContent = `[${e.league}] ${e.homeTeam} vs ${e.awayTeam}`;
+          opt.textContent = `[${e.league}] ${e.homeTeam} vs ${e.awayTeam}` + (e.inPlay ? ' 🔴 LIVE' : '');
           opt.dataset.league = e.league;
           opt.dataset.inPlay = e.inPlay;
           opt.dataset.startTime = e.startTime;

@@ -51,6 +51,6 @@ func New(cfg *config.Config) (*App, error) {
 // Run starts the poller in a goroutine and blocks on the HTTP server.
 func (a *App) Run(ctx context.Context) error {
 	go a.poller.Run(ctx)
-	log.Printf("listening on http://localhost%s", a.cfg.ServerAddr)
+	log.Printf("listening on %s", a.cfg.ServerAddr)
 	return a.server.ListenAndServe()
 }
