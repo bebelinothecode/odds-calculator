@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>OddsBot</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 20px; background: #f9f9f9; color: #222; }
+    h1 { margin-bottom: 20px; }
+    h2 { margin: 0 0 10px; font-size: 1rem; text-transform: uppercase; letter-spacing: .05em; color: #555; }
+    .layout { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+    .col-main { flex: 3; min-width: 300px; }
+    .col-alerts { flex: 1; min-width: 260px; }
+
+    select { width: 100%; padding: 8px; font-size: 1rem; border: 1px solid #ccc; border-radius: 4px; background: #fff; }
+    .meta { color: #888; font-size: 0.8rem; margin: 6px 0 16px; }
+
+    table { border-collapse: collapse; width: 100%; background: #fff; border-radius: 4px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    th, td { border: 1px solid #e0e0e0; padding: 7px 10px; font-size: 0.82rem; }
+    th { background: #f0f0f0; text-align: left; white-space: nowrap; }
+    td.best { font-weight: 600; color: #1a7a2e; }
+    h3.market-heading { margin: 20px 0 6px; font-size: 0.9rem; color: #333; }
+
+    .alert-list { display: flex; flex-direction: column; gap: 8px; max-height: 80vh; overflow-y: auto; }
+    .alert { padding: 10px 12px; background: #fff; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+    .alert strong { display: block; margin-bottom: 4px; }
+    .alert .detail { color: #666; font-size: 0.78rem; line-height: 1.5; }
+    .badge-live { background: #e53935; color: #fff; font-size: 0.7rem; padding: 1px 6px; border-radius: 10px; margin-left: 6px; vertical-align: middle; }
+    #status { font-size: 0.8rem; color: #888; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <h1>⚽🏀 OddsBot</h1>
+
+  <div class="layout">
+    <div class="col-main">
+      <h2>Match</h2>
+      <select id="eventSelect"><option value="">Loading events…</option></select>
+      <div id="eventMeta" class="meta"></div>
+
+      <div id="oddsSection"></div>
+    </div>
+
+    <div class="col-alerts">
+      <h2>Best-price alerts</h2>
+      <div id="status">Connecting…</div>
+      <div id="alerts" class="alert-list"></div>
+    </div>
+  </div>
+
+  <script>
+    // ── Alerts ────────────────────────────────────────────────────────────────
+    function prependAlert(a) {
+      const el = document.createElement('div');
+      el.className = 'alert';
+      el.innerHTML =
+        `<strong>${a.message}</strong>` +
+        `<div class="detail">` +
+          `${a.eventId} · ${a.market.type}${a.market.line ? ' ' + a.market.line : ''} · ${a.outcome}<br>` +
+          `old&nbsp;${a.oldBest.toFixed(3)} → new&nbsp;<b>${a.newBest.toFixed(3)}</b> @ ${a.bestBook}<br>` +
+          `<span style="color:#aaa">${a.createdAt}</span>` +
+        `</div>`;
+      document.getElementById('alerts').prepend(el);
+    }
+
+    async function loadAlerts() {
+      try {
+        const res = await fetch('/api/alerts/latest?n=50');
+        const data = await res.json();
+        if (Array.isArray(data)) data.forEach(prependAlert);
+      } catch (e) { console.error('loadAlerts', e); }
+    }
+
+    const es = new EventSource('/api/alerts/stream');
+    es.addEventListener('alert', e => prependAlert(JSON.parse(e.data)));
+    es.onopen  = () => { document.getElementById('status').textContent = 'Connected'; };
+    es.onerror = () => { document.getElementById('status').textContent = 'Reconnecting…'; };
+
+    // ── Events ────────────────────────────────────────────────────────────────
+    async function loadEvents() {
+      try {
+        const res = await fetch('/api/events');
+        const events = await res.json();
+        if (!Array.isArray(events)) return;
+
+        events.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+
+        const sel = document.getElementById('eventSelect');
+        const prev = sel.value;
+        sel.innerHTML = '';
+        if (events.length === 0) {
+          sel.innerHTML = '<option value="">No events available</option>';
+          return;
+        }
+        for (const e of events) {
+          const opt = document.createElement('option');
+          opt.value = e.id;
+          const live = e.inPlay ? '<span class="badge-live">LIVE</span>' : '';
+          opt.textContent = `[${e.league}] ${e.homeTeam} vs ${e.awayTeam}`;
+          opt.dataset.league = e.league;
+          opt.dataset.inPlay = e.inPlay;
+          opt.dataset.startTime = e.startTime;
+          sel.appendChild(opt);
+        }
+        // Restore selection if the same event is still available.
+        if (prev && [...sel.options].some(o => o.value === prev)) {
+          sel.value = prev;
+        }
+        if (sel.value) await loadOdds(sel.value);
+      } catch (e) { console.error('loadEvents', e); }
+    }
+
+    document.getElementById('eventSelect').addEventListener('change', async e => {
+      if (e.target.value) await loadOdds(e.target.value);
+    });
+
+    // ── Odds comparison ───────────────────────────────────────────────────────
+    async function loadOdds(id) {
+      try {
+        const res = await fetch(`/api/events/${id}/odds`);
+        if (!res.ok) { document.getElementById('oddsSection').textContent = 'No odds available yet.'; return; }
+        const view = await res.json();
+        renderOdds(view);
+      } catch (e) { console.error('loadOdds', e); }
+    }
+
+    function renderOdds(view) {
+      const ev = view.event;
+      document.getElementById('eventMeta').innerHTML =
+        `ID: ${ev.id} &nbsp;·&nbsp; Start: ${new Date(ev.startTime).toLocaleString()} &nbsp;·&nbsp; InPlay: ${ev.inPlay}`;
+
+      const root = document.getElementById('oddsSection');
+      root.innerHTML = '';
+
+      if (!view.markets || view.markets.length === 0) {
+        root.textContent = 'No odds data yet — wait for the next poll cycle.';
+        return;
+      }
+
+      for (const m of view.markets) {
+        const h = document.createElement('h3');
+        h.className = 'market-heading';
+        h.textContent = m.type.toUpperCase() + (m.line ? ` (line ${m.line})` : '');
+        root.appendChild(h);
+
+        const table = document.createElement('table');
+        // Header row
+        const thead = table.createTHead();
+        const hr = thead.insertRow();
+        ['Outcome', 'Best price', 'Best book', ...view.books].forEach(txt => {
+          const th = document.createElement('th');
+          th.textContent = txt;
+          hr.appendChild(th);
+        });
+
+        const tbody = table.createTBody();
+        for (const oc of m.outcomes) {
+          const tr = tbody.insertRow();
+          const cells = [
+            oc.outcome,
+            oc.best.decimal ? oc.best.decimal.toFixed(3) : '—',
+            oc.best.book || '—',
+            ...view.books.map(b => oc.prices[b] ? oc.prices[b].toFixed(3) : ''),
+          ];
+          cells.forEach((v, i) => {
+            const td = tr.insertCell();
+            td.textContent = v;
+            if (i === 1) td.className = 'best';
+          });
+        }
+        root.appendChild(table);
+      }
+    }
+
+    // ── Init + refresh ────────────────────────────────────────────────────────
+    loadAlerts();
+    loadEvents();
+    setInterval(loadEvents, 60_000);
+    setInterval(() => {
+      const id = document.getElementById('eventSelect').value;
+      if (id) loadOdds(id);
+    }, 15_000);
+  </script>
+</body>
+</html>
