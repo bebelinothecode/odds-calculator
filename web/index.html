@@ -5,79 +5,873 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>OddsBot</title>
   <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07111f;
+      --bg-elevated: rgba(10, 20, 37, 0.88);
+      --panel: rgba(13, 25, 46, 0.78);
+      --panel-strong: rgba(19, 35, 63, 0.96);
+      --border: rgba(149, 177, 255, 0.14);
+      --text: #ebf2ff;
+      --muted: #9eb0d1;
+      --accent: #6ea8ff;
+      --accent-strong: #8b5cf6;
+      --success: #52d7a0;
+      --warning: #ffd166;
+      --danger: #ff6b81;
+      --shadow: 0 24px 80px rgba(1, 6, 19, 0.42);
+      --radius-xl: 28px;
+      --radius-lg: 22px;
+      --radius-md: 16px;
+      --radius-sm: 12px;
+    }
+
     *, *::before, *::after { box-sizing: border-box; }
-    body { font-family: system-ui, sans-serif; margin: 0; padding: 20px; background: #f9f9f9; color: #222; }
-    h1 { margin-bottom: 20px; }
-    h2 { margin: 0 0 10px; font-size: 1rem; text-transform: uppercase; letter-spacing: .05em; color: #555; }
-    .layout { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
-    .col-main { flex: 3; min-width: 300px; }
-    .col-alerts { flex: 1; min-width: 260px; }
 
-    select { width: 100%; padding: 8px; font-size: 1rem; border: 1px solid #ccc; border-radius: 4px; background: #fff; }
-    .meta { color: #888; font-size: 0.8rem; margin: 6px 0 16px; }
+    html, body { min-height: 100%; }
 
-    table { border-collapse: collapse; width: 100%; background: #fff; border-radius: 4px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-    th, td { border: 1px solid #e0e0e0; padding: 7px 10px; font-size: 0.82rem; }
-    th { background: #f0f0f0; text-align: left; white-space: nowrap; }
-    td.best { font-weight: 600; color: #1a7a2e; }
-    h3.market-heading { margin: 20px 0 6px; font-size: 0.9rem; color: #333; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(110, 168, 255, 0.22), transparent 28%),
+        radial-gradient(circle at top right, rgba(139, 92, 246, 0.20), transparent 32%),
+        linear-gradient(180deg, #0a1425 0%, #07111f 48%, #050c17 100%);
+    }
 
-    .alert-list { display: flex; flex-direction: column; gap: 8px; max-height: 80vh; overflow-y: auto; }
-    .alert { padding: 10px 12px; background: #fff; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
-    .alert strong { display: block; margin-bottom: 4px; }
-    .alert .detail { color: #666; font-size: 0.78rem; line-height: 1.5; }
-    .badge-live { background: #e53935; color: #fff; font-size: 0.7rem; padding: 1px 6px; border-radius: 10px; margin-left: 6px; vertical-align: middle; }
-    #status { font-size: 0.8rem; color: #888; margin-bottom: 8px; }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      background-size: 42px 42px;
+      mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.24), rgba(0, 0, 0, 0.88));
+    }
+
+    .page {
+      width: min(1440px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 32px 0 48px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.9fr);
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .panel {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .panel::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(255,255,255,0.06), transparent 28%);
+    }
+
+    .hero-copy {
+      padding: 28px;
+      background:
+        radial-gradient(circle at top right, rgba(110, 168, 255, 0.22), transparent 30%),
+        linear-gradient(135deg, rgba(16, 29, 54, 0.95), rgba(11, 22, 40, 0.88));
+    }
+
+    .eyebrow,
+    .panel-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .hero h1 {
+      margin: 16px 0 10px;
+      font-size: clamp(2.25rem, 4vw, 4.4rem);
+      line-height: 0.95;
+      letter-spacing: -0.045em;
+    }
+
+    .hero p {
+      max-width: 58ch;
+      margin: 0;
+      color: #c4d2ec;
+      line-height: 1.65;
+      font-size: 1rem;
+    }
+
+    .hero-badges,
+    .event-tags,
+    .market-tags,
+    .alert-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .hero-badges { margin-top: 20px; }
+
+    .pill,
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+      font-size: 0.84rem;
+      white-space: nowrap;
+    }
+
+    .pulse::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: currentColor;
+      box-shadow: 0 0 0 0 currentColor;
+      animation: pulse 1.8s infinite;
+    }
+
+    .status-live { color: var(--success); }
+    .status-waiting { color: var(--warning); }
+    .status-offline { color: var(--danger); }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(82, 215, 160, 0.55); }
+      70% { box-shadow: 0 0 0 10px rgba(82, 215, 160, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(82, 215, 160, 0); }
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      padding: 24px;
+    }
+
+    .stat-card {
+      padding: 18px;
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-bottom: 10px;
+    }
+
+    .stat-value {
+      font-size: clamp(1.8rem, 3vw, 2.6rem);
+      font-weight: 700;
+      letter-spacing: -0.04em;
+    }
+
+    .stat-footnote {
+      margin-top: 8px;
+      color: #bfd0ee;
+      font-size: 0.82rem;
+    }
+
+    .dashboard {
+      display: grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.95fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    .stack {
+      display: grid;
+      gap: 20px;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .panel-body {
+      padding: 24px;
+    }
+
+    .panel-title {
+      margin: 8px 0 0;
+      font-size: 1.25rem;
+      letter-spacing: -0.02em;
+    }
+
+    .panel-subtitle {
+      margin: 10px 0 0;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 0.94rem;
+    }
+
+    .controls {
+      display: grid;
+      gap: 18px;
+    }
+
+    .select-wrap {
+      position: relative;
+    }
+
+    .select-wrap::after {
+      content: "⌄";
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 1rem;
+      pointer-events: none;
+    }
+
+    select {
+      width: 100%;
+      appearance: none;
+      border: 1px solid rgba(143, 170, 230, 0.16);
+      border-radius: var(--radius-md);
+      padding: 15px 46px 15px 16px;
+      background: rgba(7, 15, 28, 0.72);
+      color: var(--text);
+      font: inherit;
+      outline: none;
+      transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    select:focus {
+      border-color: rgba(110, 168, 255, 0.72);
+      box-shadow: 0 0 0 4px rgba(110, 168, 255, 0.14);
+      transform: translateY(-1px);
+    }
+
+    .event-summary {
+      display: grid;
+      gap: 16px;
+      padding: 20px;
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(180deg, rgba(13, 25, 46, 0.94), rgba(8, 16, 29, 0.9));
+    }
+
+    .matchup {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .team-block {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .team-label {
+      color: var(--muted);
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      margin-bottom: 8px;
+    }
+
+    .team-name {
+      font-size: clamp(1.1rem, 2vw, 1.45rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      overflow-wrap: anywhere;
+    }
+
+    .versus {
+      flex: none;
+      padding: 10px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.06);
+      color: #d9e4fb;
+      font-weight: 700;
+      font-size: 0.78rem;
+      letter-spacing: 0.16em;
+    }
+
+    .quick-stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .mini-stat {
+      padding: 14px;
+      border-radius: var(--radius-md);
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .mini-stat strong {
+      display: block;
+      margin-top: 6px;
+      font-size: 1.05rem;
+      letter-spacing: -0.02em;
+    }
+
+    .mini-stat span {
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .section-title {
+      margin: 0;
+      font-size: 1.2rem;
+      letter-spacing: -0.02em;
+    }
+
+    .market-list {
+      display: grid;
+      gap: 18px;
+    }
+
+    .market-card {
+      padding: 22px;
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(180deg, rgba(15, 28, 51, 0.92), rgba(8, 17, 31, 0.92));
+    }
+
+    .market-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .market-title {
+      margin: 6px 0 0;
+      font-size: 1.1rem;
+      letter-spacing: -0.02em;
+    }
+
+    .market-subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .table-shell {
+      overflow: auto;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(4, 9, 19, 0.45);
+    }
+
+    table {
+      width: 100%;
+      min-width: 720px;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      text-align: left;
+      font-size: 0.92rem;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: rgba(14, 24, 42, 0.96);
+      color: #dce7fb;
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    tbody tr:hover td {
+      background: rgba(255,255,255,0.035);
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .outcome-name {
+      display: inline-flex;
+      align-items: center;
+      min-height: 32px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.07);
+      font-weight: 600;
+    }
+
+    .best-cell {
+      color: var(--success);
+      font-weight: 700;
+    }
+
+    .book-cell {
+      color: #c9d8f2;
+      font-weight: 600;
+    }
+
+    .muted-cell {
+      color: #6f84ab;
+    }
+
+    .aside-sticky {
+      position: sticky;
+      top: 24px;
+    }
+
+    .alerts-pane {
+      max-height: calc(100vh - 56px);
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr);
+    }
+
+    .alert-list {
+      display: grid;
+      gap: 12px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .alert-card,
+    .empty-state {
+      padding: 18px;
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(180deg, rgba(16, 27, 48, 0.94), rgba(10, 18, 31, 0.94));
+    }
+
+    .alert-card strong {
+      display: block;
+      font-size: 0.98rem;
+      line-height: 1.4;
+      margin-bottom: 10px;
+    }
+
+    .alert-detail {
+      color: #bfd0ee;
+      line-height: 1.6;
+      font-size: 0.88rem;
+    }
+
+    .alert-detail time {
+      display: inline-block;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .empty-state {
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .subtle {
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    @media (max-width: 1120px) {
+      .hero,
+      .dashboard {
+        grid-template-columns: 1fr;
+      }
+
+      .aside-sticky {
+        position: static;
+      }
+
+      .alerts-pane {
+        max-height: none;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .page {
+        width: min(100vw - 20px, 100%);
+        padding: 18px 0 28px;
+      }
+
+      .hero-copy,
+      .panel-body,
+      .stats-grid,
+      .market-card {
+        padding: 18px;
+      }
+
+      .stats-grid,
+      .quick-stats {
+        grid-template-columns: 1fr;
+      }
+
+      .matchup,
+      .market-top,
+      .panel-header,
+      .section-head {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      table {
+        min-width: 640px;
+      }
+    }
   </style>
 </head>
 <body>
-  <h1>⚽🏀 OddsBot</h1>
+  <div class="page">
+    <section class="hero">
+      <div class="panel hero-copy">
+        <div class="eyebrow">Live market intelligence</div>
+        <h1>OddsBot</h1>
+        <p>
+          Track the strongest prices across books, spot movements as they happen, and scan every market from a cleaner,
+          sharper dashboard built for real-time odds monitoring.
+        </p>
+        <div class="hero-badges">
+          <span class="pill pulse status-live" id="heroFeedStatus">Connecting to live feed</span>
+          <span class="pill" id="heroRefreshStatus">Refreshing events every 60s</span>
+          <span class="pill" id="heroSelection">Waiting for event selection</span>
+        </div>
+      </div>
 
-  <div class="layout">
-    <div class="col-main">
-      <h2>Match</h2>
-      <select id="eventSelect"><option value="">Loading events…</option></select>
-      <div id="eventMeta" class="meta"></div>
+      <div class="panel stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Tracked events</div>
+          <div class="stat-value" id="statEvents">0</div>
+          <div class="stat-footnote" id="statEventsNote">Waiting for the latest poll cycle.</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Live right now</div>
+          <div class="stat-value" id="statLive">0</div>
+          <div class="stat-footnote">Matches currently flagged in-play.</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Bookmakers in view</div>
+          <div class="stat-value" id="statBooks">0</div>
+          <div class="stat-footnote">For the selected event.</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Markets rendered</div>
+          <div class="stat-value" id="statMarkets">0</div>
+          <div class="stat-footnote">Updated whenever odds refresh.</div>
+        </div>
+      </div>
+    </section>
 
-      <div id="oddsSection"></div>
-    </div>
+    <section class="dashboard">
+      <div class="stack">
+        <div class="panel">
+          <div class="panel-body">
+            <div class="panel-header">
+              <div>
+                <div class="panel-label">Event selector</div>
+                <h2 class="panel-title">Choose a matchup</h2>
+                <p class="panel-subtitle">Pick a game to compare best prices across every available bookmaker and market.</p>
+              </div>
+              <div class="pill subtle" id="eventsUpdatedAt">Waiting for data</div>
+            </div>
 
-    <div class="col-alerts">
-      <h2>Best-price alerts</h2>
-      <div id="status">Connecting…</div>
-      <div id="alerts" class="alert-list"></div>
-    </div>
+            <div class="controls">
+              <div class="select-wrap">
+                <select id="eventSelect" aria-label="Select event">
+                  <option value="">Loading events…</option>
+                </select>
+              </div>
+
+              <div class="event-summary" id="eventSummary">
+                <div class="empty-state">Event details will appear here once live data is available.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-body">
+            <div class="section-head">
+              <div>
+                <div class="panel-label">Odds board</div>
+                <h2 class="section-title">Best prices by market</h2>
+              </div>
+              <div class="pill subtle" id="oddsUpdatedAt">Waiting for odds</div>
+            </div>
+            <div id="oddsSection" class="market-list">
+              <div class="empty-state">No odds data yet. Once the poller has prices, the market board will populate automatically.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="aside-sticky">
+        <div class="panel alerts-pane">
+          <div class="panel-body">
+            <div class="panel-header">
+              <div>
+                <div class="panel-label">Live feed</div>
+                <h2 class="panel-title">Best-price alerts</h2>
+                <p class="panel-subtitle">Incoming moves appear here first so you can spot fresh edges quickly.</p>
+              </div>
+              <div class="pill pulse status-waiting" id="status">Connecting…</div>
+            </div>
+            <div class="pill subtle" id="alertCount">0 alerts loaded</div>
+          </div>
+          <div class="panel-body" style="padding-top:0">
+            <div id="alerts" class="alert-list">
+              <div class="empty-state">The live alert stream is warming up.</div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </section>
   </div>
 
   <script>
-    // ── Alerts ────────────────────────────────────────────────────────────────
-    function prependAlert(a) {
-      const el = document.createElement('div');
-      el.className = 'alert';
-      el.innerHTML =
-        `<strong>${a.message}</strong>` +
-        `<div class="detail">` +
-          `${a.eventId} · ${a.market.type}${a.market.line ? ' ' + a.market.line : ''} · ${a.outcome}<br>` +
-          `old&nbsp;${a.oldBest.toFixed(3)} → new&nbsp;<b>${a.newBest.toFixed(3)}</b> @ ${a.bestBook}<br>` +
-          `<span style="color:#aaa">${a.createdAt}</span>` +
-        `</div>`;
-      document.getElementById('alerts').prepend(el);
+    const state = {
+      events: [],
+      currentEventId: '',
+      currentView: null,
+      alerts: [],
+    };
+
+    const eventSelect = document.getElementById('eventSelect');
+    const eventSummary = document.getElementById('eventSummary');
+    const oddsSection = document.getElementById('oddsSection');
+    const alertsRoot = document.getElementById('alerts');
+    const statusEl = document.getElementById('status');
+    const heroFeedStatus = document.getElementById('heroFeedStatus');
+
+    function escapeHTML(value) {
+      return String(value).replace(/[&<>"']/g, char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      })[char]);
+    }
+
+    function formatDateTime(value) {
+      return new Date(value).toLocaleString([], {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+    }
+
+    function formatFullDateTime(value) {
+      return new Date(value).toLocaleString([], {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+    }
+
+    function formatRelativeTime(value) {
+      const diffMinutes = Math.round((new Date(value) - new Date()) / 60000);
+      if (Math.abs(diffMinutes) < 1) return 'Starting now';
+      const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+      if (Math.abs(diffMinutes) < 60) return rtf.format(diffMinutes, 'minute');
+      const diffHours = Math.round(diffMinutes / 60);
+      if (Math.abs(diffHours) < 24) return rtf.format(diffHours, 'hour');
+      const diffDays = Math.round(diffHours / 24);
+      return rtf.format(diffDays, 'day');
+    }
+
+    function formatMarketType(type) {
+      const names = {
+        moneyline: 'Moneyline',
+        spreads: 'Spread',
+        totals: 'Total',
+      };
+      return names[type] || String(type);
+    }
+
+    function formatOutcome(outcome) {
+      const names = {
+        home: 'Home',
+        away: 'Away',
+        draw: 'Draw',
+        over: 'Over',
+        under: 'Under',
+      };
+      return names[outcome] || String(outcome);
+    }
+
+    function formatLine(line) {
+      if (!line) return '—';
+      return Number(line).toFixed(Number.isInteger(line) ? 0 : 1);
+    }
+
+    function formatDecimal(price) {
+      if (!price) return '—';
+      return Number(price).toFixed(3);
+    }
+
+    function setConnectionState(label, tone) {
+      statusEl.textContent = label;
+      statusEl.className = `pill pulse ${tone}`;
+      heroFeedStatus.textContent = label;
+      heroFeedStatus.className = `pill pulse ${tone}`;
+    }
+
+    function updateHeroSelection() {
+      const selected = state.events.find(event => event.id === state.currentEventId);
+      document.getElementById('heroSelection').textContent = selected
+        ? `${selected.homeTeam} vs ${selected.awayTeam}`
+        : 'Waiting for event selection';
+    }
+
+    function updateStats() {
+      const liveCount = state.events.filter(event => event.inPlay).length;
+      document.getElementById('statEvents').textContent = String(state.events.length);
+      document.getElementById('statLive').textContent = String(liveCount);
+      document.getElementById('statEventsNote').textContent = state.events.length
+        ? `${state.events[0].league} starts ${formatRelativeTime(state.events[0].startTime)}`
+        : 'Waiting for the latest poll cycle.';
+
+      const books = state.currentView?.books?.length || 0;
+      const markets = state.currentView?.markets?.length || 0;
+      document.getElementById('statBooks').textContent = String(books);
+      document.getElementById('statMarkets').textContent = String(markets);
+      document.getElementById('alertCount').textContent = `${state.alerts.length} alert${state.alerts.length === 1 ? '' : 's'} loaded`;
+    }
+
+    function renderEventSummary() {
+      const selected = state.events.find(event => event.id === state.currentEventId);
+      if (!selected) {
+        eventSummary.innerHTML = '<div class="empty-state">Choose an event to reveal the matchup summary and current market coverage.</div>';
+        return;
+      }
+
+      const selectedMarkets = state.currentView?.markets?.length || 0;
+      const selectedBooks = state.currentView?.books?.length || 0;
+
+      eventSummary.innerHTML = `
+        <div class="event-tags">
+          <span class="tag">${escapeHTML(selected.league)}</span>
+          <span class="tag">${escapeHTML(selected.sport)}</span>
+          <span class="tag">${selected.inPlay ? 'Live now' : 'Prematch'}</span>
+          <span class="tag">${formatRelativeTime(selected.startTime)}</span>
+        </div>
+        <div class="matchup">
+          <div class="team-block">
+            <div class="team-label">Home</div>
+            <div class="team-name">${escapeHTML(selected.homeTeam)}</div>
+          </div>
+          <div class="versus">VS</div>
+          <div class="team-block" style="text-align:right">
+            <div class="team-label">Away</div>
+            <div class="team-name">${escapeHTML(selected.awayTeam)}</div>
+          </div>
+        </div>
+        <div class="quick-stats">
+          <div class="mini-stat">
+            <span>Start time</span>
+            <strong>${formatFullDateTime(selected.startTime)}</strong>
+          </div>
+          <div class="mini-stat">
+            <span>Markets</span>
+            <strong>${selectedMarkets || 'Waiting'}</strong>
+          </div>
+          <div class="mini-stat">
+            <span>Books</span>
+            <strong>${selectedBooks || 'Waiting'}</strong>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAlerts() {
+      alertsRoot.innerHTML = '';
+      if (state.alerts.length === 0) {
+        alertsRoot.innerHTML = '<div class="empty-state">No best-price alerts yet. Fresh opportunities will appear here automatically.</div>';
+        return;
+      }
+
+      for (const alert of state.alerts) {
+        const card = document.createElement('article');
+        card.className = 'alert-card';
+        card.innerHTML = `
+          <strong>${escapeHTML(alert.message)}</strong>
+          <div class="alert-tags">
+            <span class="tag">${escapeHTML(formatMarketType(alert.market.type))}</span>
+            <span class="tag">${escapeHTML(formatOutcome(alert.outcome))}</span>
+            <span class="tag">${escapeHTML(alert.bestBook)}</span>
+          </div>
+          <div class="alert-detail">
+            ${escapeHTML(alert.eventId)}<br>
+            Old best ${formatDecimal(alert.oldBest)} &rarr; new best <strong>${formatDecimal(alert.newBest)}</strong>
+            ${alert.market.line ? ` at line ${formatLine(alert.market.line)}` : ''}<br>
+            <time datetime="${escapeHTML(alert.createdAt)}">${formatFullDateTime(alert.createdAt)}</time>
+          </div>
+        `;
+        alertsRoot.appendChild(card);
+      }
+    }
+
+    function prependAlert(alert) {
+      state.alerts.unshift(alert);
+      state.alerts = state.alerts.slice(0, 60);
+      renderAlerts();
+      updateStats();
     }
 
     async function loadAlerts() {
       try {
         const res = await fetch('/api/alerts/latest?n=50');
         const data = await res.json();
-        if (Array.isArray(data)) data.forEach(prependAlert);
-      } catch (e) { console.error('loadAlerts', e); }
+        if (!Array.isArray(data)) return;
+        state.alerts = [...data].reverse();
+        renderAlerts();
+        updateStats();
+      } catch (error) {
+        console.error('loadAlerts', error);
+      }
     }
 
-    const es = new EventSource('/api/alerts/stream');
-    es.addEventListener('alert', e => prependAlert(JSON.parse(e.data)));
-    es.onopen  = () => { document.getElementById('status').textContent = 'Connected'; };
-    es.onerror = () => { document.getElementById('status').textContent = 'Reconnecting…'; };
-
-    // ── Events ────────────────────────────────────────────────────────────────
     async function loadEvents() {
       try {
         const res = await fetch('/api/events');
@@ -85,100 +879,155 @@
         if (!Array.isArray(events)) return;
 
         events.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+        state.events = events;
 
-        const sel = document.getElementById('eventSelect');
-        const prev = sel.value;
-        sel.innerHTML = '';
+        const previousSelection = state.currentEventId || eventSelect.value;
+        eventSelect.innerHTML = '';
+
         if (events.length === 0) {
-          sel.innerHTML = '<option value="">No events available</option>';
+          eventSelect.innerHTML = '<option value="">No events available yet</option>';
+          state.currentEventId = '';
+          state.currentView = null;
+          renderEventSummary();
+          renderOdds(null);
+          updateStats();
           return;
         }
-        for (const e of events) {
-          const opt = document.createElement('option');
-          opt.value = e.id;
-          opt.textContent = `[${e.league}] ${e.homeTeam} vs ${e.awayTeam}` + (e.inPlay ? ' 🔴 LIVE' : '');
-          opt.dataset.league = e.league;
-          opt.dataset.inPlay = e.inPlay;
-          opt.dataset.startTime = e.startTime;
-          sel.appendChild(opt);
+
+        for (const event of events) {
+          const option = document.createElement('option');
+          option.value = event.id;
+          option.textContent = `${event.homeTeam} vs ${event.awayTeam} • ${event.league}${event.inPlay ? ' • LIVE' : ''}`;
+          eventSelect.appendChild(option);
         }
-        // Restore selection if the same event is still available.
-        if (prev && [...sel.options].some(o => o.value === prev)) {
-          sel.value = prev;
+
+        if (previousSelection && events.some(event => event.id === previousSelection)) {
+          eventSelect.value = previousSelection;
+          state.currentEventId = previousSelection;
+        } else {
+          state.currentEventId = events[0].id;
+          eventSelect.value = state.currentEventId;
         }
-        if (sel.value) await loadOdds(sel.value);
-      } catch (e) { console.error('loadEvents', e); }
+
+        document.getElementById('eventsUpdatedAt').textContent = `Updated ${formatFullDateTime(new Date().toISOString())}`;
+        updateHeroSelection();
+        renderEventSummary();
+        updateStats();
+        if (state.currentEventId) await loadOdds(state.currentEventId);
+      } catch (error) {
+        console.error('loadEvents', error);
+      }
     }
 
-    document.getElementById('eventSelect').addEventListener('change', async e => {
-      if (e.target.value) await loadOdds(e.target.value);
+    eventSelect.addEventListener('change', async event => {
+      state.currentEventId = event.target.value;
+      state.currentView = null;
+      updateHeroSelection();
+      renderEventSummary();
+      renderOdds(null);
+      updateStats();
+      if (state.currentEventId) await loadOdds(state.currentEventId);
     });
 
-    // ── Odds comparison ───────────────────────────────────────────────────────
     async function loadOdds(id) {
       try {
         const res = await fetch(`/api/events/${id}/odds`);
-        if (!res.ok) { document.getElementById('oddsSection').textContent = 'No odds available yet.'; return; }
+        if (!res.ok) {
+          state.currentView = null;
+          renderEventSummary();
+          renderOdds(null);
+          updateStats();
+          return;
+        }
         const view = await res.json();
+        state.currentView = view;
+        renderEventSummary();
         renderOdds(view);
-      } catch (e) { console.error('loadOdds', e); }
+        updateStats();
+      } catch (error) {
+        console.error('loadOdds', error);
+      }
     }
 
     function renderOdds(view) {
-      const ev = view.event;
-      document.getElementById('eventMeta').innerHTML =
-        `ID: ${ev.id} &nbsp;·&nbsp; Start: ${new Date(ev.startTime).toLocaleString()} &nbsp;·&nbsp; InPlay: ${ev.inPlay}`;
+      oddsSection.innerHTML = '';
+      document.getElementById('oddsUpdatedAt').textContent = view
+        ? `Updated ${formatFullDateTime(new Date().toISOString())}`
+        : 'Waiting for odds';
 
-      const root = document.getElementById('oddsSection');
-      root.innerHTML = '';
-
-      if (!view.markets || view.markets.length === 0) {
-        root.textContent = 'No odds data yet — wait for the next poll cycle.';
+      if (!view || !Array.isArray(view.markets) || view.markets.length === 0) {
+        oddsSection.innerHTML = '<div class="empty-state">No odds data yet. Once the next poll cycle lands, this board will render the best prices for the selected event.</div>';
         return;
       }
 
-      for (const m of view.markets) {
-        const h = document.createElement('h3');
-        h.className = 'market-heading';
-        h.textContent = m.type.toUpperCase() + (m.line ? ` (line ${m.line})` : '');
-        root.appendChild(h);
+      for (const market of view.markets) {
+        const article = document.createElement('article');
+        article.className = 'market-card';
 
-        const table = document.createElement('table');
-        // Header row
-        const thead = table.createTHead();
-        const hr = thead.insertRow();
-        ['Outcome', 'Best price', 'Best book', ...view.books].forEach(txt => {
-          const th = document.createElement('th');
-          th.textContent = txt;
-          hr.appendChild(th);
-        });
+        const highestBest = market.outcomes.reduce((best, outcome) => {
+          if (!outcome.best || !outcome.best.decimal) return best;
+          return Math.max(best, outcome.best.decimal);
+        }, 0);
 
-        const tbody = table.createTBody();
-        for (const oc of m.outcomes) {
-          const tr = tbody.insertRow();
+        const bookCount = new Set(
+          market.outcomes.flatMap(outcome => Object.keys(outcome.prices || {}))
+        ).size;
+
+        const rows = market.outcomes.map(outcome => {
           const cells = [
-            oc.outcome,
-            oc.best.decimal ? oc.best.decimal.toFixed(3) : '—',
-            oc.best.book || '—',
-            ...view.books.map(b => oc.prices[b] ? oc.prices[b].toFixed(3) : ''),
+            `<td><span class="outcome-name">${escapeHTML(formatOutcome(outcome.outcome))}</span></td>`,
+            `<td class="best-cell">${formatDecimal(outcome.best?.decimal)}</td>`,
+            `<td class="book-cell">${escapeHTML(outcome.best?.book || '—')}</td>`,
+            ...view.books.map(book => {
+              const price = outcome.prices?.[book];
+              return `<td class="${price ? '' : 'muted-cell'}">${price ? formatDecimal(price) : '—'}</td>`;
+            }),
           ];
-          cells.forEach((v, i) => {
-            const td = tr.insertCell();
-            td.textContent = v;
-            if (i === 1) td.className = 'best';
-          });
-        }
-        root.appendChild(table);
+          return `<tr>${cells.join('')}</tr>`;
+        }).join('');
+
+        article.innerHTML = `
+          <div class="market-top">
+            <div>
+              <div class="panel-label">Market</div>
+              <h3 class="market-title">${escapeHTML(formatMarketType(market.type))}</h3>
+              <p class="market-subtitle">${market.line ? `Line ${formatLine(market.line)}` : 'Best available prices by outcome'}</p>
+            </div>
+            <div class="market-tags">
+              <span class="tag">${market.outcomes.length} outcomes</span>
+              <span class="tag">${bookCount} books</span>
+              <span class="tag">Top price ${formatDecimal(highestBest)}</span>
+            </div>
+          </div>
+          <div class="table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>Outcome</th>
+                  <th>Best</th>
+                  <th>Book</th>
+                  ${view.books.map(book => `<th>${escapeHTML(book)}</th>`).join('')}
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        `;
+
+        oddsSection.appendChild(article);
       }
     }
 
-    // ── Init + refresh ────────────────────────────────────────────────────────
+    const es = new EventSource('/api/alerts/stream');
+    es.addEventListener('alert', event => prependAlert(JSON.parse(event.data)));
+    es.onopen = () => setConnectionState('Live feed connected', 'status-live');
+    es.onerror = () => setConnectionState('Reconnecting to live feed', 'status-waiting');
+
     loadAlerts();
     loadEvents();
     setInterval(loadEvents, 60_000);
     setInterval(() => {
-      const id = document.getElementById('eventSelect').value;
-      if (id) loadOdds(id);
+      if (state.currentEventId) loadOdds(state.currentEventId);
     }, 15_000);
   </script>
 </body>
